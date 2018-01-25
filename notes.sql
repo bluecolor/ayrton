@@ -1,0 +1,192 @@
+21621399	0	083	1
+21621399	0	027	1
+70426082	0	457	1
+63741216	0	571	1
+70901648	0	KKK	1
+21621399	0	001	1
+73848384	0	520	1
+20400054	1	003	1
+57008523	2	450	1
+70424178	0	TTA	1
+21220577	0	IS4	1
+21621050	0	TKB	1
+63540854	2	IH2	1
+63741216	0	457	1
+63540854	2	460	1
+21617959	0	450	1
+57008523	2	457	1
+70913060	0	497	1
+70424158	0	TSB	1
+63540854	2	497	1
+57008523	2	496	1
+57008523	2	456	1
+21621062	0	DSK	1
+57008523	2	455	1
+21620845	0	TTA	1
+21620845	0	TSB	1
+21620886	0	DSK	1
+47862060	0	TKB	1
+21220577	0	571	1
+21078451	0	534	1
+21620845	0	TTS	1
+70901648	0	KKH	1
+63540854	2	496	1
+63741712	0	DSK	1
+70431930	0	460	1
+21621399	0	015	1
+73848384	0	CAM	1
+63741216	0	456	1
+63540854	2	457	1
+70901697	0	DSK	1
+63742047	0	CAM	1
+63741216	0	450	1
+70424158	0	TR1	1
+63741216	0	460	1
+70426082	0	455	1
+70901467	0	DTT	1
+73848384	0	570	1
+21220577	0	900	1
+63540854	2	456	1
+63540854	2	IS4	1
+70913060	0	382	1
+21220577	0	570	1
+21617959	0	460	1
+73848384	0	572	1
+47862060	0	TTS	1
+21621050	0	TTS	1
+63741216	0	520	1
+21626898	0	570	1
+21621050	0	TTK	1
+70901648	0	BDS	1
+63540854	2	450	1
+70424158	0	TTA	1
+57008523	2	520	1
+21157568	0	TTS	1
+21626898	0	571	1
+21621050	0	TR1	1
+20400054	1	014	1
+60772917	1	456	1
+70424178	0	TR1	1
+21220577	0	IM2	1
+47899170	0	TR1	1
+70431930	0	IK2	1
+21220577	0	572	1
+63741216	0	496	1
+21621399	0	300	1
+57008523	2	382	1
+60772917	1	457	1
+21153076	0	IS4	1
+60772917	1	455	1
+73848384	0	MHS	1
+47862060	0	TTK	1
+21620845	0	TTK	1
+70904577	0	DTT	1
+21617959	0	410	1
+70431930	0	572	1
+63540854	2	MHS	1
+73843856	0	450	1
+57008523	2	497	1
+21084512	0	016	1
+70431930	0	496	1
+70901637	0	DTT	1
+70904577	0	THS	1
+70431930	0	571	1
+70901648	0	IOT	1
+60772917	1	450	1
+70426082	0	450	1
+21621050	0	TSB	1
+21621399	0	016	1
+63741216	0	570	1
+70431930	0	497	1
+70431930	0	570	1
+21220577	0	IH2	1
+20400054	1	011	1
+63540854	2	382	1
+20400054	1	041	1
+21220577	0	MHS	1
+70424158	0	TTK	1
+70424158	0	TMH	1
+73843856	0	457	1
+63741216	0	497	1
+70424158	0	TKB	1
+70424158	0	TTS	1
+73848384	0	900	1
+21084512	0	015	1
+73848384	0	460	1
+21617959	0	382	1
+21621050	0	TTA	1
+70901648	0	KYH	1
+70431930	0	382	1
+21220577	0	IK2	1
+63741216	0	572	1
+70901637	0	THS	1
+70431930	0	IS4	1
+73848384	0	571	1
+21153076	0	MHS	1
+70424178	0	TKB	1
+63540854	2	IM2	1
+63540854	2	IK2	1
+63741216	0	900	1
+21617959	0	496	1
+70424178	0	TTS	1
+70431930	0	IM2	1
+21621050	0	TMH	1
+57008523	2	460	1
+70424178	0	TSB	1
+70424178	0	TMH	1
+21617959	0	457	1
+70424178	0	TTK	1
+21621399	0	014	1
+63540854	2	455	1
+
+
+
+
+
+SELECT 
+        --------------------------------------------------------------------------
+        dbms_rowid.rowid_create (1,
+                                data_object_id,
+                                lo_fno,
+                                lo_block,
+                                0) ROWID_FROM,
+        --------------------------------------------------------------------------
+        dbms_rowid.rowid_create (1,
+                                data_object_id,
+                                hi_fno,
+                                hi_block,
+                                100000) ROWID_TO
+        --------------------------------------------------------------------------
+      FROM (WITH c1 AS
+              (SELECT   *
+                    FROM dba_extents@dwhprod 
+                  WHERE segment_name = UPPER ('POLICE_TEMINAT_TABLE')
+                    AND owner = UPPER ('SG')
+                ORDER BY block_id)
+          SELECT DISTINCT grp,
+              FIRST_VALUE (relative_fno) OVER (PARTITION BY grp ORDER BY relative_fno,
+              block_id ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS lo_fno,
+              FIRST_VALUE (block_id) OVER (PARTITION BY grp ORDER BY relative_fno,
+              block_id ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS lo_block,
+              LAST_VALUE (relative_fno) OVER (PARTITION BY grp ORDER BY relative_fno,
+              block_id ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS hi_fno,
+              LAST_VALUE (block_id + blocks - 1) OVER (PARTITION BY grp ORDER BY relative_fno,
+              block_id ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS hi_block,
+              SUM (blocks) OVER (PARTITION BY grp) AS sum_blocks
+          FROM (SELECT   relative_fno, 
+                          block_id, 
+                          blocks,
+                          TRUNC(  (SUM (blocks) OVER (ORDER BY relative_fno,block_id)- 0.01)
+                                / (SUM (blocks) OVER () / 16) ) grp
+                    FROM c1
+                    WHERE segment_name = UPPER ('POLICE_TEMINAT_TABLE')
+                    AND owner = UPPER ('SG')
+                ORDER BY block_id)),
+        (SELECT data_object_id
+            FROM all_objects@DWHPROD
+          WHERE object_name = UPPER ('POLICE_TEMINAT_TABLE') AND owner = UPPER ('SG'))
+
+
+          select /*+ gather_plan_statistics */ count(*) from t
+where rowid between chartorowid('AAAgz5AAHAAAACFAAA')
+  and chartorowid('AAAgz5AAHAAAACFAAJ');
