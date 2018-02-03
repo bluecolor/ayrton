@@ -6,7 +6,8 @@ as
     i_target_table varchar2, 
     i_parallel number, 
     i_db_link varchar2 default 'BIMSADG',
-    i_expar   boolean default false
+    i_expar   boolean default false,
+    i_filter  varchar2 default null
   );
 
   procedure load_partition(

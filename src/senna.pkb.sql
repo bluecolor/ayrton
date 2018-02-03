@@ -110,7 +110,7 @@ AS
   begin
     select listagg(column_name,',') within group(order by column_name) into v_columns
     from all_tab_cols 
-    where owner = upper(i_owner) and table_name = upper(i_table) and column_name != 'PART_NUM';
+    where owner = upper(i_owner) and table_name = upper(i_table) and column_name not in ('ROW_ID', 'PART_NUM');
     return v_columns;
   end;
 
@@ -182,7 +182,8 @@ AS
     i_target_table varchar2, 
     i_parallel     number, 
     i_db_link      varchar2 default 'BIMSADG',
-    i_expar        boolean default false
+    i_expar        boolean default false,
+    i_filter       varchar2 default null
   ) is
     ----------------------------------------------------------------------------
     v_child_process_error exception;
@@ -254,6 +255,7 @@ AS
               i_rowid_from => '''||v_rowid_from||''',     
               i_rowid_to   => '''||v_rowid_to  ||''',
               i_columns    => '''||v_columns   ||''',
+              i_filter     => '''||i_filter    ||''',
               i_expar      => '||case i_expar when true then 'true' else 'false' end|| '); 
           end;
         ';
@@ -413,7 +415,7 @@ AS
       CREATE TABLE '|| i_target_owner ||'.'|| v_table_name ||'
       PARALLEL NOLOGGING COMPRESS
       AS
-      SELECT --+ parallel(4)
+      SELECT --+ parallel(t, 16)
         '||i_part_num||' PART_NUM,
         '||v_columns ||'
       FROM
@@ -511,7 +513,7 @@ AS
     end if;
 
     v_filter := v_filter|| ' AND
-      rowid between '''|| i_rowid_from||''' and '''|| i_rowid_to||'''
+      rowid between :rowid_from and :rowid_to
     ';
 
     if i_columns is null then 
@@ -519,13 +521,13 @@ AS
     end if;
 
     gv_sql := '
-      INSERT /*+ no_parallel */ INTO '|| i_target_owner ||'.'|| i_target_table ||'
+      INSERT /*+ append nologging parallel */ INTO '|| i_target_owner ||'.'|| i_target_table ||'
       PARTITION('||v_partition||')
       ( 
         PART_NUM,
         '||v_columns ||'   
       )
-      SELECT --+ no_parallel(t)
+      SELECT --+ parallel(t, 16)
         '||i_part_num||' PART_NUM,
         '||v_columns ||'
       FROM
@@ -533,8 +535,9 @@ AS
       WHERE
         '||v_filter||'
     ';
-    pl.disable_parallel_dml;
-    execute immediate gv_sql;    
+    
+    pl.enable_parallel_dml;
+    execute immediate gv_sql using i_rowid_from, i_rowid_to;    
     pl.logger.success(SQL%ROWCOUNT,gv_sql); 
     commit;   
     done;
