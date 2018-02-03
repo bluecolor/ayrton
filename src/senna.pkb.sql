@@ -402,7 +402,7 @@ AS
     end if;
 
     v_filter := v_filter|| ' AND
-      rowid between '''|| i_rowid_from||''' and '''|| i_rowid_to||'''
+      rowid between :rowid_from and :rowid_to
     ';
 
     if i_columns is null then 
@@ -424,7 +424,7 @@ AS
         '||v_filter||'
     ';
     pl.enable_parallel_dml;
-    execute immediate gv_sql;    
+    execute immediate gv_sql using i_rowid_from, i_rowid_to;    
     pl.logger.success(SQL%ROWCOUNT,gv_sql); 
     
     pl.exchange_partition(
