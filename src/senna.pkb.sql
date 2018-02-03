@@ -283,7 +283,7 @@ AS
       pl.sleep(v_sleep_sec * 1000);
       v_has_error := get_param(v_error_key);
       if v_has_error is not null and v_has_error != '0'  then
-        raise_application_error( -20001, v_error_key || ': One of the childs has error. Kill others and restart!' );
+        raise_application_error( -20001, v_error_key || ': One of the children processes has error. Kill others and restart!' );
       end if;
       exit when v_parallel <= to_number(trim(get_param(v_completed_key)));
     end loop;
