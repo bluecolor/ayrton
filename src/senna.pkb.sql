@@ -527,7 +527,7 @@ AS
         PART_NUM,
         '||v_columns ||'   
       )
-      SELECT --+ parallel(t, 16)
+      SELECT --+ parallel(t, 16) opt_param(''cell_offload_processing'' ''false'') 
         '||i_part_num||' PART_NUM,
         '||v_columns ||'
       FROM
@@ -543,12 +543,59 @@ AS
     done;
 
   exception
-    WHEN OTHERS THEN
+    when others then
       gv_sql_errc := SQLCODE;
       gv_sql_errm := SQLERRM;
       pl.logger.error(gv_sql_errm, gv_sql);
       rollback;
       error;
+      raise_application_error(gv_sql_errc, gv_sql_errm);
+  end;
+
+
+  procedure test(
+    i_num_of_tests number default 10,
+    i_source_table varchar2,
+    i_target_table varchar2, 
+    i_parallel number, 
+    i_db_link varchar2 default 'BIMSADG',
+    i_expar   boolean default false,
+    i_filter  varchar2 default null
+  ) 
+  is 
+    v_src_count number;
+    v_trg_count number;
+  begin
+      for i in 1 .. i_num_of_tests loop
+        run(
+          i_source_table,
+          i_target_table, 
+          i_parallel, 
+          i_db_link,
+          i_expar,
+          i_filter
+        );
+        gv_sql := 'select count(1) from '||i_source_table||'@'||i_db_link ||' WHERE 1=1 ';
+        if i_filter is not null then 
+          gv_sql := ' AND ' || i_filter;
+        end if; 
+        execute immediate gv_sql into v_src_count;
+        gv_sql := 'select count(1) from '||i_target_table; 
+        execute immediate gv_sql into v_trg_count;
+
+        pl.logger := utl.logtype.init('SENNA.TEST:'||to_char(sysdate,'yyyymmddhh24miss')); 
+        pl.logger.info('Test#:'||lpad(i,2,'0')||' -> Source:'||v_src_count||' Target:'||v_trg_count);
+        if v_src_count != v_trg_count then
+          exit;
+        end if;
+        
+      end loop;
+
+  exception
+    when others then
+      gv_sql_errc := SQLCODE;
+      gv_sql_errm := SQLERRM;
+      pl.logger.error(gv_sql_errm, gv_sql);
       raise_application_error(gv_sql_errc, gv_sql_errm);
   end;
 
