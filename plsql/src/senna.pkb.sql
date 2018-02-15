@@ -1,4 +1,4 @@
-CREATE OR REPLACE package body util.SENNA
+CREATE OR REPLACE package body UTIL.SENNA
 AS
   gv_pkg varchar2(30) := 'SENNA'; 	
   gv_sql long;
@@ -224,7 +224,8 @@ AS
     v_rowid_query := get_range_query(
       i_owner    => v_source(1),
       i_table    => v_source(2),
-      i_parallel => i_parallel
+      i_parallel => i_parallel,
+      i_dblk     => i_db_link
     );
 
     pl.p('Range Quuery:');
@@ -513,8 +514,9 @@ AS
     end if;
 
     v_filter := v_filter|| ' AND
-      rowid between :rowid_from and :rowid_to
+      rowid between '''||i_rowid_from||''' and ''' || i_rowid_to||''' 
     ';
+
 
     if i_columns is null then 
       v_columns := get_columns(i_target_owner, i_target_table); 
@@ -527,7 +529,7 @@ AS
         PART_NUM,
         '||v_columns ||'   
       )
-      SELECT --+ parallel(t, 16) opt_param(''cell_offload_processing'' ''false'') 
+      SELECT --+ parallel(t, 16) 
         '||i_part_num||' PART_NUM,
         '||v_columns ||'
       FROM
@@ -535,9 +537,9 @@ AS
       WHERE
         '||v_filter||'
     ';
-    
+
     pl.enable_parallel_dml;
-    execute immediate gv_sql using i_rowid_from, i_rowid_to;    
+    execute immediate gv_sql;    
     pl.logger.success(SQL%ROWCOUNT,gv_sql); 
     commit;   
     done;
@@ -577,7 +579,7 @@ AS
         );
         gv_sql := 'select count(1) from '||i_source_table||'@'||i_db_link ||' WHERE 1=1 ';
         if i_filter is not null then 
-          gv_sql := ' AND ' || i_filter;
+          gv_sql := gv_sql || ' AND ' || i_filter;
         end if; 
         execute immediate gv_sql into v_src_count;
         gv_sql := 'select count(1) from '||i_target_table; 
